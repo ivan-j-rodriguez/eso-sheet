@@ -1,13 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>Resilient Sheet</title></head>
-<body>
-<p id="status">Loading sheet...</p>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Resilient Sheet</title>
+<style>:root{--bg:#05080f;--panel:#0c1422;--line:#1e3a5f;--blue:#3b82f6;--text:#e7eefc;--muted:#8ea4c8}body{margin:0;background:var(--bg);color:var(--text);font-family:Segoe UI,sans-serif}header,section{padding:12px;border-bottom:1px solid var(--line)}h1{margin:0;font-size:24px}label{display:block;color:var(--muted);font-size:12px;margin:8px 0 4px}select,input{width:100%;background:#121c2e;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:#121c2e;border:1px solid var(--line);border-radius:10px;padding:8px;margin:6px 0}.log{white-space:pre-wrap;color:var(--muted);font-size:12px}</style></head>
+<body><header><h1>Resilient Sheet</h1><p>CP160 sheet. Open this page, set the slots, numbers update.</p></header>
+<section><div class="grid"><div><label>Race</label><select id="race"></select></div><div><label>Mundus</label><select id="mundus"></select></div></div>
+<div class="grid"><div><label>Health</label><input id="ah" type="number" value="0"></div><div><label>Magicka</label><input id="am" type="number" value="64"></div></div>
+<label>Stamina</label><input id="as" type="number" value="0"><label>Food</label><select id="food"></select>
+<div class="grid"><div><label>Curse</label><select id="curse"><option>None</option><option>Vampire</option></select></div><div><label>Vampire stage</label><select id="vstage"><option>1</option><option>2</option><option>3</option><option>4</option></select></div></div>
+<label>Main weapon</label><select id="hand"><option>Inferno staff</option><option>Lightning staff</option><option>Restoration staff</option><option>Ice staff</option><option>Bow</option><option>Dagger</option><option>Shield</option><option>Greatsword</option></select>
+<label>Body weights light / medium / heavy</label><div class="grid"><input id="light" type="number" value="5"><input id="med" type="number" value="2"><input id="heavy" type="number" value="0"></div>
+<label>Set</label><select id="set"></select><label>Pieces</label><input id="pieces" type="number" value="5">
+<label>Fighting Finesse stages</label><input id="ff" type="number" value="2" max="2"><label>Piercing stages</label><input id="piercing" type="number" value="2" max="2"><label>Precision stages</label><input id="prec" type="number" value="2" max="2">
+</section><section id="stats"></section><section class="log" id="log"></section>
 <script>
-const parts = ["aa","ab","ac","ad","ae"];
-Promise.all(parts.map(p => fetch("parts/" + p).then(r => { if (!r.ok) throw new Error(p); return r.text(); })))
-  .then(chunks => { document.open(); document.write(chunks.join("")); document.close(); })
-  .catch(err => { document.getElementById("status").textContent = "Could not load sheet parts: " + err; });
-</script>
-</body>
-</html>
+const RACES={"High Elf":{mag:2000,pen:0},"Dark Elf":{mag:0,pen:0,wd:258},"Khajiit":{crit:915},"Argonian":{hp:1000},"Breton":{mag:2000},"None":{}};
+const FOOD={"None":{},"Jugged Rabbit in Preserves":{hp:4462,mag:4105,stam:4105},"Ghastly Eye Bowl":{hp:5000,mag:4575},"Orzorga's Red Frothgar":{hp:4575,stamRec:457}};
+const SETS={"None":[],"Order's Wrath":["(2 items) Adds 657 Critical Chance","(3 items) Adds 657 Critical Chance","(4 items) Adds 129 Weapon and Spell Damage","(5 items) Adds 8% Critical Damage"],"Mother's Sorrow":["(2 items) Adds 657 Critical Chance","(3 items) Adds 657 Critical Chance","(4 items) Adds 657 Critical Chance","(5 items) Adds 657 Critical Chance"]};
+function n(id){return Number(document.getElementById(id).value)||0}
+function fill(id,obj){const s=document.getElementById(id);Object.keys(obj).forEach(k=>{const o=document.createElement("option");o.textContent=k;s.appendChild(o)})}
+fill("race",RACES);fill("food",FOOD);fill("set",SETS);fill("mundus",{Thief:1,Mage:1,Apprentice:1,None:1});
+document.body.addEventListener("change",calc);
+function calc(){
+ let hp=16000+n("ah")*122, mag=12000+n("am")*111, stam=12000+n("as")*111, crit=0, pen=0, wd=0, sd=0, critDmg=50;
+ const race=RACES[document.getElementById("race").value]||{}; Object.keys(race).forEach(k=>{if(k=="mag")mag+=race[k];if(k=="hp")hp+=race[k];if(k=="crit")crit+=race[k];if(k=="wd")wd+=race[k]});
+ const food=FOOD[document.getElementById("food").value]||{}; hp+=food.hp||0; mag+=food.mag||0; stam+=food.stam||0;
+ const light=n("light"), med=n("med"), heavy=n("heavy"); pen+=light*939; crit+=light*219; wd=Math.round((wd+1000)*(1+0.02*med)); sd=wd; critDmg+=med*2;
+ crit+=n("prec")*160; pen+=n("piercing")*350; critDmg+=n("ff")*4;
+ const have=n("pieces"); const lines=SETS[document.getElementById("set").value]||[];
+ lines.forEach(line=>{const need=Number((line.match(/\((\d+)/)||[])[1]||0); if(have<need) return; const c=line.match(/Adds (\d+) Critical Chance/); if(c) crit+=Number(c[1]); const d=line.match(/Adds (\d+) Weapon/); if(d){wd+=Number(d[1]); sd+=Number(d[1]);} const cd=line.match(/(\d+)% Critical Damage/); if(cd) critDmg+=Number(cd[1]);});
+ let recNote=""; if(document.getElementById("curse").value=="Vampire"){const stage=n("vstage"); const rec=[0,.1,.3,.6,1][stage]; recNote="Vampire stage "+stage+" health recovery -"+Math.round(rec*100)+"%";}
+ document.getElementById("stats").innerHTML=`<div class="stat">Health <b>${hp}</b></div><div class="stat">Magicka <b>${mag}</b></div><div class="stat">Stamina <b>${stam}</b></div><div class="stat">Weapon / spell damage <b>${wd}</b></div><div class="stat">Crit rating <b>${crit}</b> (${(crit/219).toFixed(1)}%)</div><div class="stat">Penetration <b>${pen}</b></div><div class="stat">Crit damage <b>${critDmg}%</b></div>`;
+ document.getElementById("log").textContent=["Light: 939 pen and 219 crit per piece. Medium: 2% crit damage and 2% weapon damage per piece.",recNote,"Fighting Finesse 4% per stage. Piercing 350 per stage. Precision 160 per stage."].filter(Boolean).join("\n");
+}
+calc();
+</script></body></html>
