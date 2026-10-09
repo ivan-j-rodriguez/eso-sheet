@@ -1,25 +1,450 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Resilient Sheet</title>
-<style>body{margin:0;background:#05080f;color:#e7eefc;font-family:Segoe UI,sans-serif}header,section{padding:12px;border-bottom:1px solid #1e3a5f}h1{margin:0;font-size:22px}label{display:block;color:#8ea4c8;font-size:12px;margin:8px 0 4px}select,input{width:100%;background:#121c2e;color:#e7eefc;border:1px solid #1e3a5f;border-radius:8px;padding:8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:#121c2e;border:1px solid #1e3a5f;border-radius:10px;padding:8px;margin:6px 0}.log{white-space:pre-wrap;color:#8ea4c8;font-size:12px;max-height:240px;overflow:auto}</style></head>
-<body><header><h1>Resilient Sheet</h1><p id="status">Loading set files...</p></header>
-<section><div class="grid"><div><label>Race</label><select id="race"></select></div><div><label>Food</label><select id="food"></select></div></div>
-<div class="grid"><div><label>Health</label><input id="ah" type="number" value="0"></div><div><label>Magicka</label><input id="am" type="number" value="64"></div></div>
-<label>Stamina</label><input id="as" type="number" value="0">
-<div class="grid"><div><label>Curse</label><select id="curse"><option>None</option><option>Vampire</option></select></div><div><label>Vampire stage</label><select id="vstage"><option>1</option><option>2</option><option>3</option><option>4</option></select></div></div>
-<label>Light / medium / heavy pieces</label><div class="grid"><input id="light" type="number" value="5"><input id="med" type="number" value="2"></div><input id="heavy" type="number" value="0">
-<label>Set</label><select id="set"></select><label>Pieces of that set</label><input id="pieces" type="number" value="5">
-<label>Precision / Piercing / Fighting Finesse stages</label><div class="grid"><input id="prec" type="number" value="2"><input id="piercing" type="number" value="2"></div><input id="ff" type="number" value="2">
-</section><section id="stats"></section><section class="log" id="log"></section>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Resilient Sheet — ESO Build Planner</title>
+<style>
+:root{
+  --bg:#070b14;--panel:#0d1524;--panel2:#111c30;--border:#1a2d4a;
+  --accent:#3b82f6;--accent2:#60a5fa;--text:#e8eef9;--muted:#8ba3c7;
+  --good:#34d399;--warn:#fbbf24;--danger:#f87171;
+  --radius:12px;--font:Inter,Segoe UI,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font);min-height:100%}
+body{background:radial-gradient(1200px 600px at 10% -10%,#12203a 0%,transparent 55%),radial-gradient(900px 500px at 100% 0%,#0a1a33 0%,transparent 50%),var(--bg)}
+a{color:var(--accent2)}
+.app{max-width:1400px;margin:0 auto;padding:16px 16px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#2563eb,#1e3a8a);display:grid;place-items:center;font-weight:800;box-shadow:0 0 24px rgba(59,130,246,.35)}
+h1{margin:0;font-size:1.35rem;letter-spacing:.02em}
+.sub{color:var(--muted);font-size:.85rem;margin-top:2px}
+.badge{background:var(--panel2);border:1px solid var(--border);color:var(--accent2);padding:6px 12px;border-radius:999px;font-size:.8rem}
+.layout{display:grid;grid-template-columns:1fr 320px;gap:16px}
+@media(max-width:980px){.layout{grid-template-columns:1fr}}
+.card{background:linear-gradient(180deg,rgba(17,28,48,.95),rgba(13,21,36,.98));border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.card h2{margin:0 0 12px;font-size:.95rem;color:var(--accent2);font-weight:600;display:flex;align-items:center;gap:8px}
+.card h2::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:700px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+label{display:block;font-size:.72rem;color:var(--muted);margin:0 0 4px;text-transform:uppercase;letter-spacing:.04em}
+select,input,button{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px 10px;font:inherit;outline:none;transition:border .15s,box-shadow .15s}
+select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+button{cursor:pointer;background:linear-gradient(180deg,#2563eb,#1d4ed8);border:none;font-weight:600}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+button:hover{filter:brightness(1.08)}
+.slot{border:1px solid var(--border);border-radius:10px;padding:10px;background:rgba(7,11,20,.45);margin-bottom:8px}
+.slot-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.slot-name{font-weight:600;font-size:.9rem}
+.slot-meta{font-size:.75rem;color:var(--muted)}
+.slot-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px}
+@media(max-width:700px){.slot-grid{grid-template-columns:1fr 1fr}}
+.stats-panel{position:sticky;top:12px}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(26,45,74,.6)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:var(--muted);font-size:.85rem}
+.stat-val{font-weight:700;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.stat-val small{color:var(--muted);font-weight:500;font-size:.75rem;margin-left:4px}
+.set-breakdown{font-size:.8rem;color:var(--muted);line-height:1.45;max-height:220px;overflow:auto;margin-top:8px;padding:8px;background:rgba(0,0,0,.25);border-radius:8px;white-space:pre-wrap}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem;width:auto}
+.tab.active{background:rgba(59,130,246,.15);border-color:var(--accent);color:var(--accent2)}
+.hidden{display:none!important}
+.quality-gold{color:#fbbf24}.quality-purple{color:#c084fc}.quality-blue{color:#60a5fa}
+.hint{font-size:.75rem;color:var(--muted);margin-top:6px}
+.progress{height:4px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:8px}
+.progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#22d3ee);width:0%;transition:width .3s}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">RS</div>
+      <div>
+        <h1>Resilient Sheet</h1>
+        <div class="sub">ESO build planner · Update 51 math · mix &amp; match gear</div>
+      </div>
+    </div>
+    <div class="badge" id="status">Loading sets…</div>
+  </div>
+
+  <div class="layout">
+    <main>
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="character">Character</button>
+        <button class="tab" data-tab="armor">Armor &amp; Jewelry</button>
+        <button class="tab" data-tab="weapons">Weapons</button>
+        <button class="tab" data-tab="cp">Champion Points</button>
+      </div>
+
+      <section id="tab-character" class="card">
+        <h2>Character</h2>
+        <div class="grid3">
+          <div><label>Race</label><select id="race"></select></div>
+          <div><label>Class</label><select id="class"></select></div>
+          <div><label>Mundus</label><select id="mundus"></select></div>
+        </div>
+        <div class="grid3" style="margin-top:10px">
+          <div><label>Attribute · Health</label><input id="attrH" type="number" min="0" max="64" value="0"/></div>
+          <div><label>Attribute · Magicka</label><input id="attrM" type="number" min="0" max="64" value="64"/></div>
+          <div><label>Attribute · Stamina</label><input id="attrS" type="number" min="0" max="64" value="0"/></div>
+        </div>
+        <div class="grid3" style="margin-top:10px">
+          <div><label>Food / Drink</label><select id="food"></select></div>
+          <div><label>Curse</label><select id="curse"><option value="none">None</option><option value="vampire">Vampire</option><option value="werewolf">Werewolf</option></select></div>
+          <div><label>Vampire stage</label><select id="vstage"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+        </div>
+        <p class="hint">Attributes must total 64. Armor weight is derived from each piece’s weight selection.</p>
+      </section>
+
+      <section id="tab-armor" class="card hidden">
+        <h2>Armor &amp; Jewelry — pick a set per piece</h2>
+        <div id="armorSlots"></div>
+      </section>
+
+      <section id="tab-weapons" class="card hidden">
+        <h2>Weapons — front &amp; back bar</h2>
+        <div id="weaponSlots"></div>
+      </section>
+
+      <section id="tab-cp" class="card hidden">
+        <h2>Champion Points (selected stars)</h2>
+        <div class="grid3">
+          <div><label>Precision (crit rating / stage)</label><input id="cpPrec" type="number" min="0" max="50" value="20"/></div>
+          <div><label>Piercing (pen / stage)</label><input id="cpPierce" type="number" min="0" max="50" value="20"/></div>
+          <div><label>Fighting Finesse (crit dmg % / stage)</label><input id="cpFF" type="number" min="0" max="50" value="20"/></div>
+        </div>
+        <div class="grid3" style="margin-top:10px">
+          <div><label>Eldritch Insight (mag / stage)</label><input id="cpEI" type="number" min="0" max="50" value="0"/></div>
+          <div><label>Tireless Resolve (stam / stage)</label><input id="cpTR" type="number" min="0" max="50" value="0"/></div>
+          <div><label>Boundless Vitality (hp / stage)</label><input id="cpBV" type="number" min="0" max="50" value="0"/></div>
+        </div>
+        <p class="hint">Stages approximate CP investment. Precision ≈ 20 rating/stage, Piercing ≈ 17.5 pen/stage ×20 ≈350 at full, Fighting Finesse ≈ 0.2%×20 ≈4% at full classic values scaled to inputs.</p>
+      </section>
+    </main>
+
+    <aside class="stats-panel">
+      <div class="card">
+        <h2>Live Stats</h2>
+        <div id="stats"></div>
+        <div class="progress"><i id="loadBar"></i></div>
+      </div>
+      <div class="card">
+        <h2>Active Set Bonuses</h2>
+        <div class="set-breakdown" id="setLog">Equip pieces to see bonuses.</div>
+      </div>
+      <div class="card">
+        <h2>Weight Count</h2>
+        <div id="weightCount" class="hint"></div>
+      </div>
+    </aside>
+  </div>
+</div>
 <script>
-const RACES={"High Elf":{mag:2000},"Dark Elf":{wd:258},"Khajiit":{crit:915},"Argonian":{hp:1000},"Breton":{mag:2000},"None":{}};
-const FOOD={"None":{},"Jugged Rabbit in Preserves":{hp:4462,mag:4105,stam:4105},"Capon Tomato-Beet Casserole":{hp:4462,mag:4105,stam:4105},"Longfin Pasty with Melon Sauce":{hp:4462,mag:4105,stam:4105},"Potentate's Supreme Cioppino":{hp:4200,mag:3864,stam:3864}};
-let SETS=[];
+/* ===== Data ===== */
+const RACES = {
+  "None":{},
+  "High Elf":{mag:2000},
+  "Dark Elf":{wd:258},
+  "Khajiit":{crit:915},
+  "Argonian":{hp:1000},
+  "Breton":{mag:2000},
+  "Nord":{hp:1000},
+  "Orc":{wd:258},
+  "Redguard":{stam:2000},
+  "Imperial":{hp:2000},
+  "Wood Elf":{stam:2000}
+};
+const CLASSES = ["Dragonknight","Sorcerer","Nightblade","Templar","Warden","Necromancer","Arcanist"];
+const MUNDUS = {
+  "None":{},
+  "The Thief":{crit:1333},
+  "The Warrior":{wd:238},
+  "The Mage":{mag:2023},
+  "The Tower":{stam:2023},
+  "The Lover":{pen:2212},
+  "The Lady":{armor:2752},
+  "The Steed":{hp:2023},
+  "The Shadow":{critDmg:11},
+  "The Ritual":{heal:8},
+  "The Atronach":{magRec:310},
+  "The Serpent":{stamRec:310},
+  "The Lord":{hpRec:310},
+  "The Apprentice":{spell:238}
+};
+const FOOD = {
+  "None":{},
+  "Jugged Rabbit in Preserves":{hp:4462,mag:4105,stam:4105},
+  "Capon Tomato-Beet Casserole":{hp:4462,mag:4105,stam:4105},
+  "Longfin Pasty with Melon Sauce":{hp:4462,mag:4105,stam:4105},
+  "Witchmother's Potent Brew":{mag:2856,magRec:312,hp:3084},
+  "Clockwork Citrus Filet":{mag:3724,magRec:319,hp:3724},
+  "Orzorga's Red Frothgar":{hp:4478,magRec:436},
+  "Dubious Camoran Throne":{hp:4478,stam:4256,stamRec:374}
+};
+const TRAITS_ARMOR = ["Divines","Infused","Impenetrable","Reinforced","Well-fitted","Training","Sturdy","Prosperous","Nirnhoned","None"];
+const TRAITS_JEWEL = ["Arcane","Healthy","Robust","Bloodthirsty","Harmony","Infused","Protective","Swift","Triune","None"];
+const TRAITS_WEAPON = ["Precise","Sharpened","Charged","Defending","Infused","Nirnhoned","Powered","Decisive","Training","None"];
+const QUALITY = ["Gold","Purple","Blue","Green","White"];
+const WEIGHTS = ["Light","Medium","Heavy"];
+const WEAPON_TYPES = ["Inferno Staff","Lightning Staff","Ice Staff","Restoration Staff","Dual Wield","Two Handed","One Hand and Shield","Bow"];
+
+const ARMOR_SLOTS = [
+  {id:"head",label:"Head",kind:"armor"},
+  {id:"shoulders",label:"Shoulders",kind:"armor"},
+  {id:"chest",label:"Chest",kind:"armor"},
+  {id:"hands",label:"Hands",kind:"armor"},
+  {id:"belt",label:"Waist",kind:"armor"},
+  {id:"legs",label:"Legs",kind:"armor"},
+  {id:"feet",label:"Feet",kind:"armor"},
+  {id:"neck",label:"Necklace",kind:"jewel"},
+  {id:"ring1",label:"Ring 1",kind:"jewel"},
+  {id:"ring2",label:"Ring 2",kind:"jewel"}
+];
+const WEAPON_SLOTS = [
+  {id:"mh1",label:"Front · Main Hand",kind:"weapon"},
+  {id:"oh1",label:"Front · Off Hand / 2H",kind:"weapon"},
+  {id:"mh2",label:"Back · Main Hand",kind:"weapon"},
+  {id:"oh2",label:"Back · Off Hand / 2H",kind:"weapon"}
+];
+
+let SETS = [];
+let SET_NAMES = ["None"];
+
+function fillSelect(el, options, selected){
+  el.innerHTML = "";
+  options.forEach(o=>{
+    const opt = document.createElement("option");
+    opt.value = typeof o === "string" ? o : o.value;
+    opt.textContent = typeof o === "string" ? o : o.label;
+    if(selected && opt.value === selected) opt.selected = true;
+    el.appendChild(opt);
+  });
+}
+
+function slotHTML(slot){
+  const isArmor = slot.kind === "armor";
+  const isJewel = slot.kind === "jewel";
+  const traits = isArmor ? TRAITS_ARMOR : isJewel ? TRAITS_JEWEL : TRAITS_WEAPON;
+  const weight = isArmor ? `<div><label>Weight</label><select data-f="weight">${WEIGHTS.map(w=>`<option>${w}</option>`).join("")}</select></div>` : "";
+  const wtype = slot.kind==="weapon" ? `<div><label>Type</label><select data-f="wtype">${WEAPON_TYPES.map(w=>`<option>${w}</option>`).join("")}</select></div>` : "";
+  return `<div class="slot" data-slot="${slot.id}">
+    <div class="slot-head"><span class="slot-name">${slot.label}</span><span class="slot-meta">${slot.kind}</span></div>
+    <div class="slot-grid">
+      <div><label>Set</label><select data-f="set" class="set-select"><option>None</option></select></div>
+      <div><label>Trait</label><select data-f="trait">${traits.map(t=>`<option>${t}</option>`).join("")}</select></div>
+      <div><label>Quality</label><select data-f="quality">${QUALITY.map(q=>`<option>${q}</option>`).join("")}</select></div>
+      ${weight}${wtype}
+    </div>
+  </div>`;
+}
+
+function initUI(){
+  fillSelect(document.getElementById("race"), Object.keys(RACES), "High Elf");
+  fillSelect(document.getElementById("class"), CLASSES, "Arcanist");
+  fillSelect(document.getElementById("mundus"), Object.keys(MUNDUS), "The Thief");
+  fillSelect(document.getElementById("food"), Object.keys(FOOD), "Clockwork Citrus Filet");
+  document.getElementById("armorSlots").innerHTML = ARMOR_SLOTS.map(slotHTML).join("");
+  document.getElementById("weaponSlots").innerHTML = WEAPON_SLOTS.map(slotHTML).join("");
+
+  document.querySelectorAll(".tab").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      ["character","armor","weapons","cp"].forEach(id=>{
+        document.getElementById("tab-"+id).classList.toggle("hidden", btn.dataset.tab!==id);
+      });
+    });
+  });
+  document.body.addEventListener("change", calc);
+  document.body.addEventListener("input", calc);
+}
+
 function n(id){return Number(document.getElementById(id).value)||0}
-function fill(id,keys){const s=document.getElementById(id);s.innerHTML="";keys.forEach(k=>{const o=document.createElement("option");o.textContent=k;s.appendChild(o)})}
-fill("race",Object.keys(RACES));fill("food",Object.keys(FOOD));
-function flats(line){const out={};if(/while|when you|after you|whenever/i.test(line)&&!/at all times/i.test(line))return out;const g=(re,k)=>{const m=line.match(re);if(m)out[k]=(out[k]||0)+Number(m[1])};g(/Adds (\d+) Maximum Health/i,"hp");g(/Adds (\d+) Maximum Magicka/i,"mag");g(/Adds (\d+) Maximum Stamina/i,"stam");g(/Adds (\d+) Weapon and Spell Damage/i,"wd");g(/Adds (\d+) Critical Chance/i,"crit");g(/Adds (\d+) Offensive Penetration/i,"pen");g(/Adds (\d+) Armor/i,"phys");const cd=line.match(/Critical Damage(?: and Healing)? by (\d+)%/i);if(cd)out.critDmg=Number(cd[1]);return out}
-function calc(){let hp=16000+n("ah")*122,mag=12000+n("am")*111,stam=12000+n("as")*111,crit=n("prec")*160,pen=n("piercing")*350,wd=1000,critDmg=50+n("ff")*4;const race=RACES[document.getElementById("race").value]||{};hp+=race.hp||0;mag+=race.mag||0;wd+=race.wd||0;crit+=race.crit||0;const food=FOOD[document.getElementById("food").value]||{};hp+=food.hp||0;mag+=food.mag||0;stam+=food.stam||0;const light=n("light"),med=n("med"),heavy=n("heavy");pen+=light*939;crit+=light*219;wd=Math.round(wd*(1+0.02*med));critDmg+=med*2;const set=SETS.find(s=>s.name===document.getElementById("set").value);const have=n("pieces");const notes=[];if(set)set.lines.forEach(line=>{const need=Number((line.match(/\((\d+)/)||[])[1]||0);if(have<need)return;const f=flats(line);hp+=f.hp||0;mag+=f.mag||0;stam+=f.stam||0;wd+=f.wd||0;crit+=f.crit||0;pen+=f.pen||0;critDmg+=f.critDmg||0;notes.push(line)});let curse="";if(document.getElementById("curse").value==="Vampire"){const stage=n("vstage");curse="Vampire stage "+stage+" health recovery -"+[0,10,30,60,100][stage]+"%";}document.getElementById("stats").innerHTML=`<div class="stat">Health <b>${hp}</b></div><div class="stat">Magicka <b>${mag}</b></div><div class="stat">Stamina <b>${stam}</b></div><div class="stat">Weapon / spell damage <b>${wd}</b></div><div class="stat">Crit rating <b>${crit}</b> (${(crit/219).toFixed(1)}%)</div><div class="stat">Penetration <b>${pen}</b></div><div class="stat">Crit damage <b>${critDmg}%</b></div>`;document.getElementById("log").textContent=[curse].concat(notes).filter(Boolean).join("\n")}
-document.body.addEventListener("change",calc);
-const base="https://raw.githubusercontent.com/ivan-j-rodriguez/eso-sheet/main/sets/sets-";
-Promise.all(Array.from({length:84},(_,i)=>fetch(base+String(i).padStart(2,"0")+".json").then(r=>r.ok?r.json():[]).catch(()=>[]))).then(parts=>{SETS=parts.flat();fill("set",["None"].concat(SETS.map(s=>s.name)));document.getElementById("status").textContent=SETS.length+" sets loaded from the repo files.";calc()});
-</script></body></html>
+
+function readSlot(el){
+  const g = name => {
+    const s = el.querySelector(`[data-f="${name}"]`);
+    return s ? s.value : null;
+  };
+  return {
+    id: el.dataset.slot,
+    set: g("set"),
+    trait: g("trait"),
+    quality: g("quality"),
+    weight: g("weight"),
+    wtype: g("wtype")
+  };
+}
+
+function flatsFromLine(line){
+  const out = {};
+  const isProc = /when you|after you|whenever|while you|on dealing|dealing damage|casting|killing/i.test(line) && !/at all times/i.test(line);
+  const add = (re,k)=>{const m=line.match(re); if(m) out[k]=(out[k]||0)+Number(m[1]);};
+  add(/Adds (\d+) Maximum Health/i,"hp");
+  add(/Adds (\d+) Maximum Magicka/i,"mag");
+  add(/Adds (\d+) Maximum Stamina/i,"stam");
+  add(/Adds (\d+) Weapon and Spell Damage/i,"wd");
+  add(/Adds (\d+) Critical Chance/i,"crit");
+  add(/Adds (\d+) Offensive Penetration/i,"pen");
+  add(/Adds (\d+) Armor/i,"armor");
+  add(/Adds (\d+) Magicka Recovery/i,"magRec");
+  add(/Adds (\d+) Stamina Recovery/i,"stamRec");
+  add(/Adds (\d+) Health Recovery/i,"hpRec");
+  const cd = line.match(/Critical Damage(?: and Healing)? by (\d+)%/i);
+  if(cd) out.critDmg = (out.critDmg||0)+Number(cd[1]);
+  const heal = line.match(/Adds (\d+)% Healing Done/i);
+  if(heal) out.heal = (out.heal||0)+Number(heal[1]);
+  const ht = line.match(/Adds (\d+)% Healing Taken/i);
+  if(ht) out.healTaken = (out.healTaken||0)+Number(ht[1]);
+  out._proc = isProc && !Object.keys(out).some(k=>k!=="_proc");
+  return out;
+}
+
+function traitBonuses(piece, isArmor){
+  const t = piece.trait;
+  const out = {};
+  if(t==="Divines") out.mundusMult = 0.091;
+  if(t==="Impenetrable") out.critRes = 526;
+  if(t==="Reinforced") out.armorPct = 0.16;
+  if(t==="Precise") out.crit = 788;
+  if(t==="Sharpened") out.pen = 1638;
+  if(t==="Nirnhoned" && !isArmor) out.wd = 157;
+  if(t==="Arcane") out.mag = 877;
+  if(t==="Healthy") out.hp = 965;
+  if(t==="Robust") out.stam = 877;
+  if(t==="Triune"){out.hp=483;out.mag=439;out.stam=439}
+  if(t==="Protective") out.armor = 1844;
+  return out;
+}
+
+function calc(){
+  let hp=16000+n("attrH")*122;
+  let mag=12000+n("attrM")*111;
+  let stam=12000+n("attrS")*111;
+  let crit=0, pen=0, wd=1000, critDmg=50, armor=0, magRec=0, stamRec=0, hpRec=0, heal=0;
+
+  const race = RACES[document.getElementById("race").value]||{};
+  hp+=(race.hp||0); mag+=(race.mag||0); stam+=(race.stam||0); wd+=(race.wd||0); crit+=(race.crit||0);
+
+  const food = FOOD[document.getElementById("food").value]||{};
+  hp+=(food.hp||0); mag+=(food.mag||0); stam+=(food.stam||0);
+  magRec+=(food.magRec||0); stamRec+=(food.stamRec||0); hpRec+=(food.hpRec||0);
+
+  crit += n("cpPrec") * 16;
+  pen += n("cpPierce") * 17.5;
+  critDmg += n("cpFF") * 0.2;
+  mag += n("cpEI") * 26;
+  stam += n("cpTR") * 26;
+  hp += n("cpBV") * 28;
+
+  const pieces = [...document.querySelectorAll(".slot")].map(readSlot);
+  let light=0, med=0, heavy=0;
+  const setCounts = {};
+
+  pieces.forEach(p=>{
+    if(p.set && p.set!=="None") setCounts[p.set]=(setCounts[p.set]||0)+1;
+    if(p.weight==="Light") light++;
+    if(p.weight==="Medium") med++;
+    if(p.weight==="Heavy") heavy++;
+
+    const isArmor = ARMOR_SLOTS.some(s=>s.id===p.id);
+    const tb = traitBonuses(p, isArmor);
+    hp+=(tb.hp||0); mag+=(tb.mag||0); stam+=(tb.stam||0); crit+=(tb.crit||0);
+    pen+=(tb.pen||0); wd+=(tb.wd||0); critDmg+=(tb.critDmg||0); armor+=(tb.armor||0);
+  });
+
+  pen += light * 939;
+  crit += light * 219;
+  critDmg += med * 2;
+  wd = Math.round(wd * (1 + 0.02 * med));
+  armor += heavy * 343 * 2;
+
+  const mundus = MUNDUS[document.getElementById("mundus").value]||{};
+  let divines = pieces.filter(p=>p.trait==="Divines").length;
+  const mScale = 1 + divines * 0.091;
+  crit += Math.round((mundus.crit||0)*mScale);
+  wd += Math.round((mundus.wd||mundus.spell||0)*mScale);
+  mag += Math.round((mundus.mag||0)*mScale);
+  stam += Math.round((mundus.stam||0)*mScale);
+  hp += Math.round((mundus.hp||0)*mScale);
+  pen += Math.round((mundus.pen||0)*mScale);
+  armor += Math.round((mundus.armor||0)*mScale);
+  critDmg += (mundus.critDmg||0);
+  magRec += Math.round((mundus.magRec||0)*mScale);
+  stamRec += Math.round((mundus.stamRec||0)*mScale);
+  hpRec += Math.round((mundus.hpRec||0)*mScale);
+
+  const log = [];
+  Object.entries(setCounts).forEach(([name,count])=>{
+    const set = SETS.find(s=>s.name===name);
+    if(!set) return;
+    log.push(`${name} (${count})`);
+    set.lines.forEach(line=>{
+      const need = Number((line.match(/\((\d+)/)||[])[1]||0);
+      if(count < need) return;
+      const f = flatsFromLine(line);
+      hp+=(f.hp||0); mag+=(f.mag||0); stam+=(f.stam||0); wd+=(f.wd||0);
+      crit+=(f.crit||0); pen+=(f.pen||0); armor+=(f.armor||0);
+      magRec+=(f.magRec||0); stamRec+=(f.stamRec||0); hpRec+=(f.hpRec||0);
+      critDmg+=(f.critDmg||0); heal+=(f.heal||0);
+      log.push("  "+line);
+    });
+  });
+
+  let curseNote = "";
+  if(document.getElementById("curse").value==="vampire"){
+    const stage = n("vstage");
+    const penHp = [0,10,30,60,100][stage]||0;
+    curseNote = `Vampire stage ${stage}: Health Recovery −${penHp}%`;
+  }
+
+  const critPct = (crit/219).toFixed(1);
+  document.getElementById("stats").innerHTML = [
+    ["Health", Math.round(hp)],
+    ["Magicka", Math.round(mag)],
+    ["Stamina", Math.round(stam)],
+    ["Weapon / Spell Damage", Math.round(wd)],
+    ["Crit Rating", `${Math.round(crit)} <small>${critPct}%</small>`],
+    ["Crit Damage", `${critDmg.toFixed(1)}%`],
+    ["Penetration", Math.round(pen)],
+    ["Armor", Math.round(armor)],
+    ["Mag Recovery", Math.round(magRec)],
+    ["Stam Recovery", Math.round(stamRec)],
+    ["Health Recovery", Math.round(hpRec)],
+  ].map(([l,v])=>`<div class="stat-row"><span class="stat-label">${l}</span><span class="stat-val">${v}</span></div>`).join("");
+
+  document.getElementById("setLog").textContent = (curseNote?curseNote+"\n":"") + (log.length?log.join("\n"):"No set bonuses active.");
+  document.getElementById("weightCount").textContent = `Light ${light} · Medium ${med} · Heavy ${heavy} · Divines ${divines}`;
+}
+
+async function loadSets(){
+  const base = "https://raw.githubusercontent.com/ivan-j-rodriguez/eso-sheet/main/sets/sets-";
+  const bar = document.getElementById("loadBar");
+  let done = 0;
+  const parts = await Promise.all(Array.from({length:84},(_,i)=>
+    fetch(base+String(i).padStart(2,"0")+".json")
+      .then(r=>r.ok?r.json():[])
+      .catch(()=>[])
+      .finally(()=>{done++; bar.style.width = (done/84*100)+"%";})
+  ));
+  SETS = parts.flat();
+  SET_NAMES = ["None"].concat(SETS.map(s=>s.name).sort((a,b)=>a.localeCompare(b)));
+  document.querySelectorAll(".set-select").forEach(sel=>{
+    const cur = sel.value;
+    fillSelect(sel, SET_NAMES, cur);
+  });
+  document.getElementById("status").textContent = SETS.length + " sets loaded";
+  calc();
+}
+
+initUI();
+loadSets();
+</script>
+</body>
+</html>
